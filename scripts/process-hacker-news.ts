@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
-import { google } from 'googleapis';
-import * as cheerio from 'cheerio';
+import Parser from 'rss-parser';
 import fs from 'fs';
 import path from 'path';
 
@@ -42,110 +41,36 @@ interface ParsedArticle {
 }
 
 const client = new Anthropic();
+const parser = new Parser();
 
-async function initGmailClient() {
-  const email = process.env.GMAIL_SERVICE_ACCOUNT_EMAIL;
-  const keyBase64 = process.env.GMAIL_SERVICE_ACCOUNT_KEY_BASE64;
-
-  if (!email || !keyBase64) {
-    throw new Error('Gmail credentials not found in environment variables');
-  }
-
-  const keyJson = JSON.parse(Buffer.from(keyBase64, 'base64').toString('utf-8'));
-
-  const auth = new google.auth.GoogleAuth({
-    credentials: keyJson,
-    scopes: ['https://www.googleapis.com/auth/gmail.readonly'],
-  });
-
-  return google.gmail({ version: 'v1', auth });
-}
-
-async function getLatestHackerNewsEmail(): Promise<ParsedArticle[]> {
+async function getLatestHackerNewsArticles(): Promise<ParsedArticle[]> {
   try {
-    console.log('📧 Gmail API から最新メール取得中...');
-    const gmail = await initGmailClient();
+    console.log('📡 The Hacker News RSS フィードを取得中...');
 
-    const result = await gmail.users.messages.list({
-      userId: 'me',
-      q: 'from:thehackernews@thehackernews.com',
-      maxResults: 1,
-    });
+    const feed = await parser.parseURL('https://feeds.thehackernews.com/feed');
+    const articles: ParsedArticle[] = [];
 
-    const messages = result.data.messages;
-    if (!messages || messages.length === 0) {
-      console.warn('⚠️  The Hacker News メールが見つかりません');
-      return [];
-    }
+    // 最新 10 件の記事を処理
+    const items = feed.items.slice(0, 10);
 
-    const message = await gmail.users.messages.get({
-      userId: 'me',
-      id: messages[0].id!,
-    });
-
-    const payload = message.data.payload;
-    let htmlBody = '';
-
-    if (payload?.parts) {
-      const htmlPart = payload.parts.find((p) => p.mimeType === 'text/html');
-      if (htmlPart?.body?.data) {
-        htmlBody = Buffer.from(htmlPart.body.data, 'base64').toString('utf-8');
+    for (const item of items) {
+      if (item.title && item.link) {
+        articles.push({
+          title: item.title,
+          url: item.link,
+          summary: item.contentSnippet || item.content || item.summary || '記事サマリー',
+          date: item.pubDate ? new Date(item.pubDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        });
       }
-    } else if (payload?.body?.data) {
-      htmlBody = Buffer.from(payload.body.data, 'base64').toString('utf-8');
     }
 
-    const articles = parseEmailBody(htmlBody);
-    console.log(`✅ ${articles.length} 件の記事を抽出しました`);
+    console.log(`✅ ${articles.length} 件の記事を取得しました`);
     return articles;
   } catch (error) {
-    console.error('❌ Gmail API エラー:', error);
+    console.error('❌ RSS フィード取得エラー:', error);
     console.log('⚠️ モックデータを使用します');
     return getMockArticles();
   }
-}
-
-function parseEmailBody(htmlBody: string): ParsedArticle[] {
-  if (!htmlBody) return [];
-
-  const $ = cheerio.load(htmlBody);
-  const articles: ParsedArticle[] = [];
-
-  // The Hacker News メール形式の記事リンク抽出
-  // 通常は <a href="..."> タグで thehackernews.com リンク
-  $('a[href*="thehackernews.com"]').each((i, elem) => {
-    const url = $(elem).attr('href');
-    const title = $(elem).text().trim();
-
-    // URL が有効で、重複でない場合のみ追加
-    if (url && title && !articles.some((a) => a.url === url)) {
-      const summary = extractSummaryFromContext($, elem);
-      articles.push({
-        title,
-        url,
-        summary,
-        date: new Date().toISOString().split('T')[0],
-      });
-    }
-  });
-
-  return articles;
-}
-
-function extractSummaryFromContext($: any, elem: cheerio.Element): string {
-  // リンク直後のテキストをサマリーとして取得
-  let summary = '';
-  let nextElem = elem.next;
-
-  while (nextElem && summary.length < 200) {
-    const text = $(nextElem).text().trim();
-    if (text && text.length > 5) {
-      summary += text + ' ';
-    }
-    nextElem = nextElem.next;
-  }
-
-  return summary.slice(0, 300).trim() || '記事サマリー';
 }
 
 async function fetchArticleContent(url: string): Promise<string> {
@@ -160,28 +85,18 @@ async function fetchArticleContent(url: string): Promise<string> {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
     const html = await response.text();
-    const $ = cheerio.load(html);
 
-    // 記事本文を抽出（複数のセレクタを試す）
-    let articleText = '';
-    const selectors = ['article', '[role="main"]', '.post-content', 'main', '.article-body', '.entry-content'];
+    // 簡単なテキスト抽出（HTML タグ削除）
+    const text = html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-    for (const selector of selectors) {
-      const elem = $(selector);
-      if (elem.length > 0) {
-        articleText = elem.text();
-        break;
-      }
-    }
-
-    if (!articleText) {
-      // フォールバック：body 全体から本文を抽出
-      articleText = $('body').text();
-    }
-
-    return articleText.slice(0, 5000).trim();
+    return text.slice(0, 5000);
   } catch (error) {
-    console.error(`⚠️  URL fetch 失敗: ${url}`, error);
+    console.error(`⚠️ URL fetch 失敗: ${url}`);
     return '';
   }
 }
@@ -326,12 +241,6 @@ function getMockArticles(): ParsedArticle[] {
       summary: 'A critical security vulnerability in Progress MOVEit Transfer has been discovered.',
       date: new Date().toISOString().split('T')[0],
     },
-    {
-      title: 'Weaver E-cology RCE Flaw CVE-2026-22679 Actively Exploited',
-      url: 'https://thehackernews.com/2026/05/weaver-ecology-cve.html',
-      summary: 'A critical security vulnerability in Weaver E-cology has come under active exploitation.',
-      date: new Date().toISOString().split('T')[0],
-    },
   ];
 }
 
@@ -339,10 +248,10 @@ async function processNews(): Promise<void> {
   try {
     console.log('🔄 セキュリティニュース処理を開始します\n');
 
-    // Gmail から記事取得
-    let parsedArticles = await getLatestHackerNewsEmail();
+    // RSS フィードから記事取得
+    let parsedArticles = await getLatestHackerNewsArticles();
 
-    // メールが空の場合はモック使用
+    // 記事が見つからない場合はモック使用
     if (parsedArticles.length === 0) {
       console.log('📰 モックデータを使用します\n');
       parsedArticles = getMockArticles();
@@ -361,7 +270,7 @@ async function processNews(): Promise<void> {
         const articleContent = await fetchArticleContent(item.url);
 
         // Claude で分析
-        const analysis = await analyzeWithClaude(item.title, articleContent);
+        const analysis = await analyzeWithClaude(item.title, articleContent || item.summary);
 
         const article: NewsArticle = {
           date: item.date,
@@ -388,7 +297,7 @@ async function processNews(): Promise<void> {
         articles.push(article);
         console.log(`✅ ${analysis.risk_level} リスク評価完了`);
 
-        // Supabase に保存
+        // Supabase に保存を試みる
         const saved = await saveToSupabase(article);
         if (saved) {
           console.log(`💾 Supabase に保存しました`);

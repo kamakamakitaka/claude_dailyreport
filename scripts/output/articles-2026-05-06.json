@@ -19,26 +19,5 @@
     "affected_industries": [],
     "compliance_types": [],
     "attack_type": null
-  },
-  {
-    "date": "2026-05-06",
-    "title": "Weaver E-cology RCE Flaw CVE-2026-22679 Actively Exploited",
-    "summary": "A critical security vulnerability in Weaver E-cology has come under active exploitation.",
-    "original_url": "https://thehackernews.com/2026/05/weaver-ecology-cve.html",
-    "risk_level": "🟡",
-    "cve_id": null,
-    "cvss_score": null,
-    "detailed_analysis": "Analysis pending...",
-    "security_analysis": "Risk assessment in progress",
-    "it_infrastructure": "Infrastructure recommendations pending",
-    "business_impact": "Business impact assessment pending",
-    "financial_impact": "Financial impact assessment pending",
-    "compliance_risk": "Compliance assessment pending",
-    "geopolitical_context": "Geopolitical assessment pending",
-    "recovery_info": "Recovery information pending",
-    "incident_response": "Incident response assessment pending",
-    "affected_industries": [],
-    "compliance_types": [],
-    "attack_type": null
   }
 ]
