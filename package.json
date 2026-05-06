@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "process-news": "npx ts-node scripts/process-hacker-news.ts"
+    "process-news": "npx ts-node --project tsconfig.scripts.json scripts/process-hacker-news.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.1",
