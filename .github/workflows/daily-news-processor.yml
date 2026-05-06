@@ -1,0 +1,52 @@
+name: Daily Security News Processor
+
+on:
+  schedule:
+    # 毎日 21:30 JST (= 12:30 UTC) に実行
+    - cron: '30 12 * * *'
+  workflow_dispatch: # 手動トリガーも可能
+
+jobs:
+  process-news:
+    runs-on: ubuntu-latest
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GMAIL_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GMAIL_SERVICE_ACCOUNT_EMAIL }}
+      GMAIL_SERVICE_ACCOUNT_KEY_BASE64: ${{ secrets.GMAIL_SERVICE_ACCOUNT_KEY_BASE64 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run news processor
+        run: npm run process-news
+
+      - name: Commit and push output
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          # output ファイルを commit
+          if [ -d "scripts/output" ]; then
+            git add scripts/output/
+            git commit -m "docs: Daily news processing output - $(date -u +'%Y-%m-%d %H:%M:%S UTC')" || echo "No changes to commit"
+            git push
+          fi
+
+      - name: Log execution
+        run: |
+          echo "✅ Daily news processor executed at $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
