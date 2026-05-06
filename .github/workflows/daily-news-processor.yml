@@ -6,6 +6,9 @@ on:
     - cron: '30 12 * * *'
   workflow_dispatch: # 手動トリガーも可能
 
+permissions:
+  contents: write
+
 jobs:
   process-news:
     runs-on: ubuntu-latest
