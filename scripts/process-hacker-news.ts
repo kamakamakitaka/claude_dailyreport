@@ -47,7 +47,29 @@ async function getLatestHackerNewsArticles(): Promise<ParsedArticle[]> {
   try {
     console.log('📡 The Hacker News RSS フィードを取得中...');
 
-    const feed = await parser.parseURL('https://feeds.thehackernews.com/feed');
+    // 複数の URL を試す
+    const feedUrls = [
+      'https://thehackernews.com/feeds/latest',
+      'https://feeds.thehackernews.com/feed',
+      'https://feeds2.thehackernews.com/feed',
+    ];
+
+    let feed;
+    for (const url of feedUrls) {
+      try {
+        console.log(`  試中: ${url}`);
+        feed = await parser.parseURL(url);
+        console.log(`  ✅ 成功: ${url}`);
+        break;
+      } catch (urlError) {
+        console.log(`  ❌ 失敗: ${url}`);
+        continue;
+      }
+    }
+
+    if (!feed) {
+      throw new Error('すべての RSS フィード URL でアクセス失敗');
+    }
     const articles: ParsedArticle[] = [];
 
     // 最新 10 件の記事を処理
