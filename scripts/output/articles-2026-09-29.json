@@ -1,0 +1,36 @@
+[
+  {
+    "date": "2026-09-29",
+    "title": "MOVEit Critical Flaw Allows Remote Code Execution",
+    "summary": "A critical security vulnerability in Progress MOVEit Transfer has been discovered.",
+    "original_url": "https://thehackernews.com/2026/05/moveit-critical.html",
+    "risk_level": "🔴",
+    "cve_id": null,
+    "cvss_score": null,
+    "detailed_analysis": "ざっくり説明:\nProgress社のファイル転送ソフト「MOVEit Transfer」に、リモートから任意のコードを実行可能な致命的な脆弱性が発見されました。攻撃者は認証なしでサーバーを完全に乗っ取れる可能性があります。\n\n何が起きたか:\nMOVEit Transferにクリティカル評価の脆弱性が公表されました。悪用されるとリモートコード実行(RCE)が可能となり、サーバー内のファイルや資格情報の窃取、ランサムウェア展開、横展開攻撃に繋がる恐れがあります。過去にはCl0pランサムウェアグループによる大規模な悪用事例(2023年)もあり、同様の連鎖侵害が懸念されます。\n\nセキュリティリスク:\n- 認証バイパスによる不正アクセス\n- 顧客・取引先データの大量漏洩\n- サプライチェーン経由での二次被害\n- ランサムウェアによる業務停止\n\nITインフラ対応:\n- Progress社公式パッチの即時適用\n- MOVEitインターフェースのインターネット公開停止(WAF/VPN経由に限定)\n- ログ精査によるIoC検知(不審なファイルアクセス、Webshell配置)\n- EDRによる異常プロセス監視\n\n企業対応:\n- インシデント対応チームの招集\n- 取引先・顧客への影響有無の確認と通知準備\n- 個人情報保護委員会への報告体制準備\n- 広報・法務との連携\n\n用語説明:\nRCE(Remote Code Execution)=遠隔任意コード実行。MOVEit=企業間で機密ファイルを安全に転送するためのMFT(Managed File Transfer)製品。",
+    "security_analysis": "MOVEit Transferは金融、医療、政府機関などで機密ファイル転送に広く利用されており、RCE脆弱性の悪用は即座にデータ漏洩やランサムウェア感染に直結します。認証を要さない攻撃が可能であれば、インターネット公開されたインスタンスは自動スキャンによる大量侵害の対象となります。過去のCl0pグループによるMOVEit攻撃では2,700以上の組織、9,000万件以上の個人情報が影響を受けており、今回も同様の規模になる可能性があります。",
+    "it_infrastructure": "Progress社の公式アドバイザリを確認し、最新パッチを緊急適用してください。パッチ適用までの間はMOVEitサーバーをインターネットから遮断し、VPN/ゼロトラストアクセス経由のみに制限することを推奨します。またWebshell(human2.aspx等の既知IoC)、異常なDB接続、不審なアカウント作成のログを遡及調査し、EDR・SIEMで継続監視を強化する必要があります。",
+    "business_impact": "MOVEitを利用する企業では業務停止、顧客データ漏洩による訴訟リスク、取引先への通知コストが発生します。1件あたりの平均データ漏洩コストは約4.45百万ドル(IBM調査)。過去のMOVEit事件では集団訴訟や規制当局の調査に発展した事例が多数存在します。",
+    "financial_impact": "Progress Software(NASDAQ: PRGS)は過去のMOVEit事件時に株価が10-15%下落しました。今回も脆弱性の悪用範囲次第で株価下落、被害企業の株価にも一時的な影響が予想されます。サイバー保険料の上昇要因にもなります。",
+    "compliance_risk": "GDPR(EU一般データ保護規則)違反時は最大で全世界売上の4%の制裁金。PCI-DSS対象のカード情報漏洩時はカードブランドからの罰金と加盟店資格停止リスク。日本のFISC安全対策基準では金融機関に対し速やかな報告義務、改正個人情報保護法では72時間以内の個人情報保護委員会報告が求められます。",
+    "geopolitical_context": "過去のMOVEit攻撃はロシア語圏のCl0p(TA505)ランサムウェアグループが主導しました。MFT製品は取引先・顧客データが集約されるハブとなるため、サプライチェーン攻撃の高価値標的です。1社の侵害が数百〜数千の下流組織に波及します。",
+    "recovery_info": "パッチ適用は数時間で可能ですが、侵害調査(フォレンジック)には2〜4週間、影響を受けた顧客への通知と対応には数ヶ月を要する場合があります。ランサムウェア展開時は業務復旧に1〜3週間、完全復旧には3〜6ヶ月を要することもあります。",
+    "incident_response": "Progress社またはセキュリティ研究者(通常はHuntress、Rapid7、watchTowr等)が発見・報告するケースが多いです。組織的脆弱性としては、①MFT製品のインターネット公開、②パッチ適用サイクルの遅延、③MFT経由データフローの可視性欠如が挙げられます。CSIRT体制の即応性が問われます。",
+    "affected_industries": [
+      "finance",
+      "healthcare",
+      "government",
+      "retail",
+      "manufacturing",
+      "insurance"
+    ],
+    "compliance_types": [
+      "GDPR",
+      "PCI-DSS",
+      "FISC",
+      "HIPAA",
+      "APPI"
+    ],
+    "attack_type": "RCE"
+  }
+]
